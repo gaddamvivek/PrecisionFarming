@@ -1,1 +1,1 @@
-https://iamteja-juluri.github.io/smartfarming.io/
+Smart Farming Site for Crop Prediction and Recommendation
