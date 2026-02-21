@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 from collections import Counter
@@ -51,6 +52,17 @@ def crop():
 @app.route("/fertilizer")
 def fertilizer():
     return render_template("fertilizer.html", crops=CROPS)
+
+
+@app.route("/insights")
+def insights():
+    return render_template("insights.html")
+
+
+@app.route("/api/insights")
+def api_insights():
+    with open("data/model_metrics.json") as f:
+        return jsonify(json.load(f))
 
 
 # ── API: Crop Prediction ──────────────────────────────────────────────────────

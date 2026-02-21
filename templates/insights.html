@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Insights — SmartFarming</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #111; }
+
+        .insights-wrapper {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            color: #fff;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .stat-row {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 36px;
+        }
+
+        .stat-card {
+            background: #73a580;
+            border-radius: 8px;
+            padding: 20px 32px;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .stat-card .num {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #2a2a2a;
+            margin-top: 4px;
+        }
+
+        .chart-card {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 28px;
+            margin-bottom: 28px;
+        }
+
+        .chart-card h2 {
+            color: #73a580;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #73a580;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="insights-wrapper">
+
+        <div class="page-header">
+            <h1>Model Insights</h1>
+            <p>Performance metrics and analysis across all 6 ML models trained on 2,200 crop samples</p>
+        </div>
+
+        <div class="stat-row" id="statRow">
+            <div class="stat-card"><div class="num" id="statSamples">—</div><div class="label">Training Samples</div></div>
+            <div class="stat-card"><div class="num" id="statCrops">—</div><div class="label">Crop Classes</div></div>
+            <div class="stat-card"><div class="num" id="statFeatures">—</div><div class="label">Input Features</div></div>
+            <div class="stat-card"><div class="num" id="statBest">—</div><div class="label">Best Accuracy</div></div>
+        </div>
+
+        <div class="chart-card">
+            <h2>Model Accuracy Comparison (% on 20% test split)</h2>
+            <div class="chart-container" style="height:260px">
+                <canvas id="accuracyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2>Feature Importance — Random Forest</h2>
+            <div class="chart-container" style="height:240px">
+                <canvas id="rfImportanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2>Feature Importance — XGBoost</h2>
+            <div class="chart-container" style="height:240px">
+                <canvas id="xgbImportanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2>Training Data — Crop Distribution</h2>
+            <div class="chart-container" style="height:320px">
+                <canvas id="cropChart"></canvas>
+            </div>
+        </div>
+
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+
+    <script>
+        const COLORS = [
+            '#73a580','#3c00a0','#e67e22','#e74c3c',
+            '#2ecc71','#3498db','#9b59b6','#1abc9c',
+            '#f39c12','#d35400','#27ae60','#2980b9',
+            '#8e44ad','#16a085','#c0392b','#f1c40f',
+            '#7f8c8d','#34495e','#e91e63','#00bcd4',
+            '#ff5722','#607d8b'
+        ];
+
+        async function load() {
+            const res = await fetch('/api/insights');
+            const d = await res.json();
+
+            // Stats
+            document.getElementById('statSamples').textContent = d.total_samples.toLocaleString();
+            document.getElementById('statCrops').textContent = d.num_crops;
+            document.getElementById('statFeatures').textContent = d.num_features;
+            const best = Math.max(...Object.values(d.accuracies));
+            document.getElementById('statBest').textContent = best + '%';
+
+            // Accuracy chart
+            const accLabels = Object.keys(d.accuracies);
+            const accValues = Object.values(d.accuracies);
+            new Chart(document.getElementById('accuracyChart'), {
+                type: 'bar',
+                data: {
+                    labels: accLabels,
+                    datasets: [{
+                        data: accValues,
+                        backgroundColor: COLORS.slice(0, accLabels.length),
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            min: 80, max: 100,
+                            ticks: { color: '#aaa', callback: v => v + '%' },
+                            grid: { color: '#333' }
+                        },
+                        y: { ticks: { color: '#ddd' }, grid: { display: false } }
+                    }
+                }
+            });
+
+            // RF feature importance
+            if (d.feature_importances['Random Forest']) {
+                renderImportance('rfImportanceChart', d.feature_importances['Random Forest'], '#73a580');
+            }
+
+            // XGBoost feature importance
+            if (d.feature_importances['XGBoost']) {
+                renderImportance('xgbImportanceChart', d.feature_importances['XGBoost'], '#3c00a0');
+            }
+
+            // Crop distribution
+            const cropLabels = Object.keys(d.crop_counts);
+            const cropValues = Object.values(d.crop_counts);
+            new Chart(document.getElementById('cropChart'), {
+                type: 'bar',
+                data: {
+                    labels: cropLabels,
+                    datasets: [{
+                        data: cropValues,
+                        backgroundColor: COLORS,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#aaa', maxRotation: 45 }, grid: { display: false } },
+                        y: { ticks: { color: '#aaa' }, grid: { color: '#333' } }
+                    }
+                }
+            });
+        }
+
+        function renderImportance(canvasId, importances, color) {
+            const sorted = Object.entries(importances).sort((a, b) => b[1] - a[1]);
+            new Chart(document.getElementById(canvasId), {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(e => e[0]),
+                    datasets: [{
+                        data: sorted.map(e => e[1]),
+                        backgroundColor: color,
+                        borderRadius: 5,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#ddd' }, grid: { display: false } },
+                        y: { ticks: { color: '#aaa' }, grid: { color: '#333' } }
+                    }
+                }
+            });
+        }
+
+        load();
+    </script>
+</body>
+</html>
