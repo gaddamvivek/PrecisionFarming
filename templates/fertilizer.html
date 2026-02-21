@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fertilizer Recommendation</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://kit.fontawesome.com/6a4dfecb4a.js" crossorigin="anonymous"></script>
+    <style>
+        .result-box {
+            margin-top: 20px;
+            background: #eaeaea;
+            border-radius: 6px;
+            padding: 16px 20px;
+            text-align: left;
+            display: none;
+            font-size: 13px;
+            color: #222;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+        .result-box .result-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #3c00a0;
+            margin-bottom: 8px;
+        }
+        .error-box {
+            margin-top: 12px;
+            color: #c0392b;
+            font-size: 13px;
+            display: none;
+        }
+        select {
+            width: 100%;
+            background: transparent;
+            border: 0;
+            outline: 0;
+            padding: 18px 15px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-box">
+            <h1 id="title">Fertilizer Recommendation</h1>
+            <form id="fertilizerForm">
+                <div class="input-group">
+
+                    <p>Crop Type</p>
+                    <div class="input-field">
+                        <select id="crop" required>
+                            <option value="" disabled selected>Select crop</option>
+                            {% for crop in crops %}
+                            <option value="{{ crop }}">{{ crop | capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <p>Nitrogen (N) — current soil value</p>
+                    <div class="input-field">
+                        <input type="number" id="N" placeholder="e.g. 70" step="any" required>
+                    </div>
+
+                    <p>Phosphorus (P) — current soil value</p>
+                    <div class="input-field">
+                        <input type="number" id="P" placeholder="e.g. 30" step="any" required>
+                    </div>
+
+                    <p>Potassium (K) — current soil value</p>
+                    <div class="input-field">
+                        <input type="number" id="K" placeholder="e.g. 35" step="any" required>
+                    </div>
+
+                    <br>
+                </div>
+
+                <div class="btn-field">
+                    <button type="submit" id="predictBtn">Predict</button>
+                    <a href="/"><button type="button">← Back</button></a>
+                </div>
+            </form>
+
+            <div class="result-box" id="resultBox">
+                <div class="result-title" id="resultTitle"></div>
+                <div id="resultText"></div>
+            </div>
+            <div class="error-box" id="errorBox"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fertilizerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('predictBtn');
+            btn.textContent = 'Predicting...';
+            btn.disabled = true;
+
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('errorBox').style.display = 'none';
+
+            const payload = {
+                crop: document.getElementById('crop').value,
+                N: document.getElementById('N').value,
+                P: document.getElementById('P').value,
+                K: document.getElementById('K').value,
+            };
+
+            try {
+                const res = await fetch('/predict/fertilizer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('resultTitle').textContent = '🧪 Fertilizer Recommendation';
+                document.getElementById('resultText').textContent = data.recommendation;
+                document.getElementById('resultBox').style.display = 'block';
+            } catch (err) {
+                document.getElementById('errorBox').textContent = 'Error: ' + err.message;
+                document.getElementById('errorBox').style.display = 'block';
+            } finally {
+                btn.textContent = 'Predict';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

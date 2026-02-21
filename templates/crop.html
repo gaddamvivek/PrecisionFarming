@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Recommendation</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://kit.fontawesome.com/6a4dfecb4a.js" crossorigin="anonymous"></script>
+    <style>
+        .result-box {
+            margin-top: 20px;
+            background: #eaeaea;
+            border-radius: 6px;
+            padding: 16px 20px;
+            text-align: left;
+            display: none;
+        }
+        .result-box .main-result {
+            font-size: 18px;
+            font-weight: 700;
+            color: #3c00a0;
+            text-transform: capitalize;
+            margin-bottom: 10px;
+        }
+        .result-box .model-breakdown {
+            font-size: 12px;
+            color: #555;
+        }
+        .result-box .model-breakdown span {
+            display: inline-block;
+            background: #73a580;
+            color: black;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 3px 2px;
+            text-transform: capitalize;
+        }
+        .error-box {
+            margin-top: 12px;
+            color: #c0392b;
+            font-size: 13px;
+            display: none;
+        }
+        select {
+            width: 100%;
+            background: transparent;
+            border: 0;
+            outline: 0;
+            padding: 18px 15px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-box">
+            <h1 id="title">Crop Recommendation</h1>
+            <form id="cropForm">
+                <div class="input-group">
+
+                    <p>Nitrogen (N)</p>
+                    <div class="input-field">
+                        <input type="number" id="N" placeholder="e.g. 90" step="any" required>
+                    </div>
+
+                    <p>Phosphorus (P)</p>
+                    <div class="input-field">
+                        <input type="number" id="P" placeholder="e.g. 42" step="any" required>
+                    </div>
+
+                    <p>Potassium (K)</p>
+                    <div class="input-field">
+                        <input type="number" id="K" placeholder="e.g. 43" step="any" required>
+                    </div>
+
+                    <p>Temperature (°C)</p>
+                    <div class="input-field">
+                        <input type="number" id="temperature" placeholder="e.g. 21" step="any" required>
+                    </div>
+
+                    <p>Humidity (%)</p>
+                    <div class="input-field">
+                        <input type="number" id="humidity" placeholder="e.g. 82" step="any" required>
+                    </div>
+
+                    <p>pH</p>
+                    <div class="input-field">
+                        <input type="number" id="ph" placeholder="e.g. 6.5" step="any" required>
+                    </div>
+
+                    <p>Rainfall (mm)</p>
+                    <div class="input-field">
+                        <input type="number" id="rainfall" placeholder="e.g. 202" step="any" required>
+                    </div>
+
+                    <br>
+                </div>
+
+                <div class="btn-field">
+                    <button type="submit" id="predictBtn">Predict</button>
+                    <a href="/"><button type="button">← Back</button></a>
+                </div>
+            </form>
+
+            <div class="result-box" id="resultBox">
+                <div class="main-result" id="mainResult"></div>
+                <div class="model-breakdown" id="modelBreakdown"></div>
+            </div>
+            <div class="error-box" id="errorBox"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('cropForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('predictBtn');
+            btn.textContent = 'Predicting...';
+            btn.disabled = true;
+
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('errorBox').style.display = 'none';
+
+            const payload = {
+                N: document.getElementById('N').value,
+                P: document.getElementById('P').value,
+                K: document.getElementById('K').value,
+                temperature: document.getElementById('temperature').value,
+                humidity: document.getElementById('humidity').value,
+                ph: document.getElementById('ph').value,
+                rainfall: document.getElementById('rainfall').value,
+            };
+
+            try {
+                const res = await fetch('/predict/crop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('mainResult').textContent = '🌾 Recommended Crop: ' + data.recommendation;
+
+                const breakdown = Object.entries(data.results)
+                    .map(([model, pred]) => `<span title="${model}">${pred}</span>`)
+                    .join('');
+                document.getElementById('modelBreakdown').innerHTML = 'All models: ' + breakdown;
+
+                document.getElementById('resultBox').style.display = 'block';
+            } catch (err) {
+                document.getElementById('errorBox').textContent = 'Error: ' + err.message;
+                document.getElementById('errorBox').style.display = 'block';
+            } finally {
+                btn.textContent = 'Predict';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
