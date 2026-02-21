@@ -24,6 +24,12 @@ for name, path in MODEL_FILES.items():
         with open(path, "rb") as f:
             models[name] = pickle.load(f)
 
+# Load label encoder
+label_encoder = None
+if os.path.exists("models/label_encoder.pkl"):
+    with open("models/label_encoder.pkl", "rb") as f:
+        label_encoder = pickle.load(f)
+
 # ── Load data ─────────────────────────────────────────────────────────────────
 fertilizer_df = pd.read_csv("data/fertilizer.csv")
 from data.fertilizerdic import fertilizer_dic
@@ -67,7 +73,9 @@ def predict_crop():
     results = {}
     for name, model in models.items():
         try:
-            results[name] = str(model.predict(features)[0])
+            pred_encoded = model.predict(features)[0]
+            pred_label = label_encoder.inverse_transform([pred_encoded])[0] if label_encoder else str(pred_encoded)
+            results[name] = pred_label
         except Exception:
             results[name] = "Error"
 

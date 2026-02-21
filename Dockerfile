@@ -11,4 +11,7 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 COPY --chown=user . /app
 
+# Train and save models at build time (no binary files in git)
+RUN python train.py
+
 CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "120", "app:app"]
